@@ -1,0 +1,4 @@
+﻿  server.cpp
+c:\users\administrator\desktop\locationmanagerment\serverr\server.cpp(75): warning C4101: 'sendBuff': unreferenced local variable
+  Serverr.vcxproj -> C:\Users\Administrator\Desktop\LocationManagerment\Debug\Serverr.exe
+  Serverr.vcxproj -> C:\Users\Administrator\Desktop\LocationManagerment\Debug\Serverr.pdb (Partial PDB)
