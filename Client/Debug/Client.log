@@ -1,0 +1,7 @@
+﻿  stdafx.cpp
+  Client.cpp
+d:\sourcecode\socket\btl\locationshareapplication\client\client.cpp(145): warning C4172: returning address of local variable or temporary: retu
+d:\sourcecode\socket\btl\locationshareapplication\client\client.cpp(147): warning C4172: returning address of local variable or temporary: retu
+d:\sourcecode\socket\btl\locationshareapplication\client\client.cpp(154): warning C4172: returning address of local variable or temporary: retu
+  Client.vcxproj -> D:\SourceCode\Socket\BTL\LocationShareApplication\Debug\Client.exe
+  Client.vcxproj -> D:\SourceCode\Socket\BTL\LocationShareApplication\Debug\Client.pdb (Full PDB)
