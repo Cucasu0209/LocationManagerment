@@ -4,6 +4,7 @@
 #include <conio.h>
 #include <WinSock2.h>
 
+#include <iostream>
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
@@ -12,6 +13,8 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+#define SECRET_LEN 30
+#define SPLIT_DELIMITER "\##"
 #define ENDING_DELIMITER "\r\n"
 #define PORT 6600
 #define BUFF_SIZE 2048
@@ -21,12 +24,17 @@ int Receive(SOCKET, char *, int, int);
 int Send(SOCKET, char *, int, int);
 char* getSubStr(char *, int , int );
 void handleLogin(SOCKET, char *);
+void handleRegister(SOCKET, char *);
+void handleListCategory(SOCKET, char *);
+void handleListPlace(SOCKET, char *);
+char * generateString(char *);
 sql::Connection * getDbConnection();
 
 
 
 int main(int argc, char* argv[])
 {
+	//handleListCategory(NULL, "LISTCA\##tokengenerate");
 	//handleLogin(NULL, "LOGIN\r\nthangtv\r\n1");
 	DWORD		nEvents = 0;
 	DWORD		index;
@@ -147,14 +155,14 @@ int main(int argc, char* argv[])
 				recvBuff[ret] = 0;
 				char * tmpSplitFunc = (char*) malloc(ret * sizeof(char));
 				strcpy(tmpSplitFunc, recvBuff);
-				char * typeReq = strtok(tmpSplitFunc, ENDING_DELIMITER);
+				char * typeReq = strtok(tmpSplitFunc, SPLIT_DELIMITER);
 				if (strcmp(typeReq, "LOGIN") == 0) {
 					handleLogin(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "REGISTER") == 0) {
-
+					handleRegister(socks[index], recvBuff);
 				}
-				else if (strcmp(typeReq, "LISTFR") == 0) {
+				else if (strcmp(typeReq, "SHARE") == 0) {
 
 				}
 				else if (strcmp(typeReq, "SAVEPL") == 0) {
@@ -167,15 +175,12 @@ int main(int argc, char* argv[])
 
 				}
 				else if (strcmp(typeReq, "LISTPL") == 0) {
-
+					handleListPlace(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "LISTCA") == 0) {
-
+					handleListCategory(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "CREATECA") == 0) {
-
-				}
-				else if (strcmp(typeReq, "SHARE") == 0) {
 
 				}
 
@@ -222,6 +227,18 @@ int Send(SOCKET s, char *buff, int size, int flags) {
 	return n;
 }
 
+char * generateString(char * username) {
+	char keyGen[SECRET_LEN];
+	char charArr[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/,.-+=~`<>:";
+	for (int index = 0; index < SECRET_LEN; index++)
+	{
+		keyGen[index] = charArr[rand() % (sizeof charArr - 1)];
+	}
+	char * tmp = (char *)malloc(sizeof(char) * 100);
+	strcpy(tmp, username);
+	return strcat(tmp, keyGen);
+}
+
 char* getSubStr(char * buff, int from, int length) {
 	char* subbuff = (char *)malloc((length + 1) * sizeof(char));
 	memcpy(subbuff, &buff[from], length);
@@ -242,14 +259,14 @@ sql::Connection * getDbConnection() {
 void handleLogin(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
-	char * typeReq = strtok(requestStr, ENDING_DELIMITER);
-	char * username = strtok(NULL, ENDING_DELIMITER);
-	char * password = strtok(NULL, ENDING_DELIMITER);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * username = strtok(NULL, SPLIT_DELIMITER);
+	char * password = strtok(NULL, SPLIT_DELIMITER);
 	printf("Handle request LOGIN: account=%s  password=%s\n", username, password);
 	char sql[BUFF_SIZE];
 	snprintf(sql, sizeof(sql), "SELECT token from User where username='%s' and password='%s'"
 								, username, password);
-
+	printf("Query: %s\n", sql);
 	//query DB
 	sql::Statement *stmt;
 	sql::ResultSet *res;
@@ -260,10 +277,9 @@ void handleLogin(SOCKET s, char * buff) {
 	bool isSuccess = false;
 	while (res->next()) {
 		isSuccess = true;
-		printf("Response token for user %s: %s",username, res->getString("token"));
 		// send response with success code
 		snprintf(response, sizeof(response), "100%s%s"
-			, ENDING_DELIMITER,res->getString("token"));	
+			, SPLIT_DELIMITER,res->getString("token").c_str());
 	}
 	if (isSuccess){
 		Send(s, response, strlen(response), 0);
@@ -272,10 +288,131 @@ void handleLogin(SOCKET s, char * buff) {
 	else {
 		Send(s, "101", 3, 0);
 	}
-	// send response with fail code
 	delete res;
 	delete stmt;
 	delete con;
+}
 
-	// xư lý response code và send lại cho client
+void handleRegister(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * username = strtok(NULL, SPLIT_DELIMITER);
+	char * password = strtok(NULL, SPLIT_DELIMITER);
+	char * token = generateString(username);
+	
+	printf("Handle request Register: account=%s  password=%s\n", username, password);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), "INSERT INTO location_management.`user`(username, password, token) VALUES('%s', '%s', '%s')"
+		, username, password, token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	try {
+		bool res = stmt->execute(sql);
+		Send(s, "200", 3, 0);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, "201", 3, 0);
+	}
+
+	
+	delete stmt;
+	delete con;
+}
+
+void handleListCategory(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+	printf("Handle request LIST_CATEGORY: token=%s\n", token);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), 
+		"(select c.* from user u, category c where(c.user_create = u.username and u.token = '%s')) \
+			UNION (select * from category ca where  ca.user_create is null) order by categoryid"
+		, token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::ResultSet *res;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	res = stmt->executeQuery(sql);
+	char response[BUFF_SIZE];
+	strcpy(response, "800");
+	bool isSuccess = false;
+	while (res->next()) {
+		isSuccess = true;
+		char buildCategoryStr[BUFF_SIZE*2];
+		// send response with success code
+		snprintf(buildCategoryStr, sizeof(buildCategoryStr), "%s%s%s%s"
+			, SPLIT_DELIMITER, res->getString("categoryid").c_str(), SPLIT_DELIMITER, res->getString("name").c_str());
+		strcat(response, buildCategoryStr);
+	}
+	if (isSuccess) {
+		Send(s, response, strlen(response), 0);
+
+	}
+	else {
+		Send(s, "801", 3, 0);
+	}
+	delete res;
+	delete stmt;
+	delete con;
+}
+
+void handleListPlace(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	int categoryId = atoi(strtok(NULL, SPLIT_DELIMITER));
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+	char sql[BUFF_SIZE];
+	if (categoryId == 0) {
+		printf("Handle request LIST_PLACE user be shared: token=%s\n", token);
+		snprintf(sql, sizeof(sql),
+			"select  p.placeid, p.name , up.user_share, up.categoryid from userplace up, `user` u, place p\
+		where u.token = '%s' and p.placeid = up.placeid and u.username = up.username and up.categoryid=0"
+			, token);
+	}
+	else {
+		printf("Handle request LIST_PLACE: categoryid=%d token=%s\n",categoryId, token);
+		snprintf(sql, sizeof(sql),
+			"select p.placeid, p.name, up.user_share, c.name from userplace up, `user` u, place p, category c \
+		where u.token = '%s' and up.categoryid = c.categoryid and p.placeid = up.placeid and u.username = up.username and up.categoryid=%d"
+			, token, categoryId);
+	}
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::ResultSet *res;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	res = stmt->executeQuery(sql);
+	char response[BUFF_SIZE];
+	strcpy(response, "700");
+	bool isSuccess = false;
+	while (res->next()) {
+		isSuccess = true;
+		char buildCategoryStr[BUFF_SIZE * 2];
+		// send response with success code
+		snprintf(buildCategoryStr, sizeof(buildCategoryStr), "%s%s%s%s%s%s%s%s"
+			, SPLIT_DELIMITER, res->getString(1).c_str(), SPLIT_DELIMITER, res->getString(2).c_str(),
+			SPLIT_DELIMITER, res->getString(3).c_str(), SPLIT_DELIMITER, res->getString(4).c_str());
+		strcat(response, buildCategoryStr);
+	}
+	if (isSuccess) {
+		Send(s, response, strlen(response), 0);
+
+	}
+	else {
+		Send(s, "701", 3, 0);
+	}
+	delete res;
+	delete stmt;
+	delete con;
 }

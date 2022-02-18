@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #define BUFF_SIZE  2048
+#define SPLIT_DELIMITER "\##"
 #define ENDING_DELIMITER "\r\n"
 #pragma comment (lib, "Ws2_32.lib")
 using namespace std;
@@ -17,7 +18,10 @@ int sendMessage(char* msg);
 int receiveMessage(char* buff);
 char* getSubStr(char *, int, int);
 char * formatStr(char*);
+void showLogoutScene();
+void showRegisterScene();
 
+void showLoginScene();
 struct Location {
 	char placeID[BUFF_SIZE];
 	char placeName[BUFF_SIZE];
@@ -57,10 +61,6 @@ int getInputOption() {
 	return convertCharArrayToInt(key);
 }
 
-bool loginUser(char* username, char* password) {
-	return username[0] == 'q';
-}
-
 bool registerUser(char* username, char* password) {
 	return username[0] == 'q';
 }
@@ -69,9 +69,6 @@ bool saveLocation(char* location, char* categoryId) {
 	return true;
 }
 
-bool logoutUser() {
-	return true;
-}
 
 bool updateLocation(char* locationID, char* locationName, char* categoryId) {
 	return true;
@@ -99,15 +96,34 @@ bool yesNoQuestion() {
 
 }
 
-void showLoginScene() {
-	char _userName[BUFF_SIZE], _password[BUFF_SIZE];
-	printf("\nUsername: ");
-	gets_s(_userName, BUFF_SIZE);
-	printf("\nPassword: ");
-	gets_s(_password, BUFF_SIZE);
+void showAllLocationByType(int categoryid, bool isShareType=false){
 	char request[BUFF_SIZE];
-	snprintf(request, sizeof(request), "LOGIN%s%s%s%s"
-		, ENDING_DELIMITER, _userName, ENDING_DELIMITER, _password);
+	if (isShareType) {
+		printf("danh sach dia diem chua gan category \n");
+		snprintf(request, sizeof(request), "LISTPL%s%c%s%s"
+			, SPLIT_DELIMITER, '0', SPLIT_DELIMITER,secretKey);
+	}
+	else {
+		printf("danh sach dia diem categoryid=%d \n", categoryid);
+		snprintf(request, sizeof(request), "LISTPL%s%d%s%s"
+			, SPLIT_DELIMITER, categoryid, SPLIT_DELIMITER, secretKey);
+	}
+
+	int ret = sendMessage(request);
+	if (ret == SOCKET_ERROR)
+		printf("Error %d\n", WSAGetLastError());
+	char response[BUFF_SIZE];
+	ret = receiveMessage(response);
+	printf("response from server %s", response);
+}
+void showNotifyLocationScene(){
+	showAllLocationByType(0, true);
+}
+
+int showCategorySelector() {
+	char request[BUFF_SIZE];
+	snprintf(request, sizeof(request), "LISTCA%s%s"
+		, SPLIT_DELIMITER, secretKey);
 	int ret = sendMessage(request);
 	if (ret == SOCKET_ERROR)
 		printf("Error %d\n", WSAGetLastError());
@@ -116,61 +132,38 @@ void showLoginScene() {
 	if (ret > 0) {
 		printf("Reponse from server: %s \n", response);
 	}
-	char * typeReq = strtok(response, ENDING_DELIMITER);
-	if (strcmp(typeReq, "100") == 0) {
-		char * token = strtok(NULL, ENDING_DELIMITER);
-		isLogin = true;
-		strcpy(secretKey, token);
-	}
-	else if (strcmp(typeReq, "101") == 0) {
-		isLogin = false;
-		printf("Login failed, account or password not correct! \n");
-	}
-}
-
-void showRegisterScene() {
-	printf("\n");
-	char _userName[BUFF_SIZE], _password[BUFF_SIZE];
-	printf("Username: ");
-	gets_s(_userName, BUFF_SIZE);
-	printf("Password: ");
-	gets_s(_password, BUFF_SIZE);
-	if (registerUser(_userName, _password)) {
-		printf("-LOG: Register Success.\n");
-	}
-	else {
-		printf("-LOG: Exist Username.\n");
-	}
-
-}
-
-char* showCategorySelector() {
-	printf("\n");
-	printf("================    OPTION      ================\n");
-	printf("Please Select one category.\n");
-	printf("1. category 1.\n");
-	printf("2. category 1.\n");
-	printf("2. category 1.\n");
-	printf("2. category 1.\n");
-	printf("2. category 1.\n");
-	printf("==================================================\n");
-	printf("You Select 1 category: ");
-	char retu[BUFF_SIZE];
-	while (true) {
-		int in = getInputOption();
-		switch (in)
-		{
-		case 1:
-			return  retu;
-		case 2:
-			return  retu;
-		default:
-			printf("-LOG: Wrong. Select Again: ");
-			break;
+	char * typeReq = strtok(response, SPLIT_DELIMITER);
+	if (strcmp(typeReq, "800") == 0) {
+		printf("\n");
+		printf("Please Select one category.\n");
+		printf("CATEGORY_ID\t NAME\n");
+		char * value = strtok(NULL, SPLIT_DELIMITER);
+		while (value != NULL) {
+			printf("%s\t\t%s\n", value, strtok(NULL, SPLIT_DELIMITER));
+			value = strtok(NULL, SPLIT_DELIMITER);
 		}
-	}
+		printf("==================================================\n");
+		printf("You Select 1 category: ");
+		while (true) {
+			int in = getInputOption();
+			if (in < 0) {
+				printf("\n-LOG: Wrong. Select Again: ");
+				continue;
+			}
+			else if (in == 0) {
+				return -1;
+			}
+			else {
+				return in;
+			}
+		}
 
-	return retu;
+	}
+	else if (strcmp(typeReq, "801") == 0) {
+		printf("No Category found!\n");
+	}
+	return -1;
+	
 }
 
 void showAddNewLocationScene() {
@@ -179,7 +172,7 @@ void showAddNewLocationScene() {
 	printf("Location Name: ");
 	gets_s(_locationName, BUFF_SIZE);
 
-	char* selector = showCategorySelector();
+	/*char* selector = showCategorySelector();
 	copyCharArray(_categoryID, selector, BUFF_SIZE);
 
 	printf("Do you want to save?.\n");
@@ -192,7 +185,7 @@ void showAddNewLocationScene() {
 		{
 			printf("-LOG: Add New Location Fail.\n");
 		}
-	}
+	}*/
 
 }
 
@@ -216,9 +209,9 @@ void showUpdateLocationDetail(char* locationID) {
 			break;
 		case 2:
 			char  _newCategoryID[BUFF_SIZE];
-			selector = showCategorySelector();
+		/*	selector = showCategorySelector();
 			copyCharArray(_newCategoryID, selector, BUFF_SIZE);
-			copyCharArray(_categoryID, _newCategoryID, BUFF_SIZE);
+			copyCharArray(_categoryID, _newCategoryID, BUFF_SIZE)*/;
 			break;
 		case 3:
 			if (updateLocation(locationID, _locationName, _categoryID)) {
@@ -335,33 +328,14 @@ void showLocationsSharedScene() {
 
 void showLocationsScene() {
 	printf("\n");
-	printf("================    LOCATION LIST      ================\n");
+	printf("================    CATEGORY LIST      ================\n");
 	printf("0. Back.\n");
-	printf("1. Your friends shared to you 5 locations.\n");
-	printf("2. Location 1.\n");
-	printf("2. Location 1.\n");
-	printf("2. Location 1.\n");
-	printf("2. Location 1.\n");
-	printf("2. Location 1.\n");
-	printf("========================================================\n");
-	printf("You Select: ");
-	while (true) {
-		int in = getInputOption();
-		switch (in)
-		{
-		case 0:
-			return;
-		case 1:
-			showLocationsSharedScene();
-			return;
-		case 2:
-			char locationID[BUFF_SIZE];
-			showLocationDetail(locationID);
-			return;
-		default:
-			printf("-LOG: Wrong. Select Again: ");
-			break;
-		}
+	int input = showCategorySelector();
+	if (input == -1) {
+		return;
+	}
+	else {
+		showAllLocationByType(input);
 	}
 }
 
@@ -393,9 +367,10 @@ void showFirstScene() {
 void showHomeScene() {
 	printf("\n");
 	printf("================       Hello %s        ================\n", username);
-	printf("1. Add new Location\n");
-	printf("2. See all Location\n");
-	printf("3. Log out\n");
+	printf("1. You has X locations share don't has category!\n");
+	printf("2. Add new Location\n");
+	printf("3. See all Location\n");
+	printf("4. Log out\n");
 	printf("================================================================\n");
 	printf("You Select: ");
 	while (true) {
@@ -403,24 +378,16 @@ void showHomeScene() {
 		switch (in)
 		{
 		case 1:
-			showAddNewLocationScene();
+			showNotifyLocationScene();
 			return;
 		case 2:
-			showLocationsScene();
+			showAddNewLocationScene();
 			return;
 		case 3:
-			printf("Are you sure to Logout?\n");
-			if (yesNoQuestion()) {
-				if (logoutUser()) {
-					printf("-LOG: Log out Success.\n");
-					isLogin = false;
-				}
-				else
-				{
-					printf("-LOG: Log out Fail.\n");
-				}
-			}
-
+			showLocationsScene();
+			return;
+		case 4:
+			showLogoutScene();
 			return;
 		default:
 			printf("-LOG: Wrong. Select Again: ");
@@ -434,8 +401,10 @@ void showHomeScene() {
 //MAIN
 int main(int argc, char* argv[])
 {
+	isLogin = true;
+	strcpy(secretKey, "tokengenerate");
 	// TODO tranthang2404: delete after none debug
-	Sleep(1000);
+	Sleep(500);
 	//Step 1: Inittiate WinSock
 	WSADATA wsaData;
 	WORD wVersion = MAKEWORD(2, 2);
@@ -488,7 +457,7 @@ int sendMessage(char* msg) {
 		sendBuff[i] = msg[i];
 	}
 	/*sendBuff[i] = '\r';
-	sendBuff[i] = '\n';*/
+	sendBuff[i+1] = '\n';*/
 	return send(client, sendBuff, i, 0);
 }
 
@@ -521,4 +490,78 @@ char * formatStr(char* input) {
 	}
 	char * formatedStr = getSubStr(input, 0, lenStr);
 	return formatedStr;
+}
+
+void showLogoutScene() {
+	printf("Are you sure to Logout?\n");
+	if (yesNoQuestion()) {
+		printf("-LOG: Log out Success.\n");
+		isLogin = false;
+		strcpy(secretKey, "");
+	}
+}
+void showLoginScene() {
+	char _userName[BUFF_SIZE], _password[BUFF_SIZE];
+	printf("\nUsername: ");
+	gets_s(_userName, BUFF_SIZE);
+	printf("\nPassword: ");
+	gets_s(_password, BUFF_SIZE);
+	char request[BUFF_SIZE];
+	snprintf(request, sizeof(request), "LOGIN%s%s%s%s"
+		, SPLIT_DELIMITER, _userName, SPLIT_DELIMITER, _password);
+	int ret = sendMessage(request);
+	if (ret == SOCKET_ERROR)
+		printf("Error %d\n", WSAGetLastError());
+	char response[BUFF_SIZE];
+	ret = receiveMessage(response);
+	if (ret > 0) {
+		printf("Reponse from server: %s \n", response);
+	}
+	char * typeReq = strtok(response, SPLIT_DELIMITER);
+	if (strcmp(typeReq, "100") == 0) {
+		char * token = strtok(NULL, SPLIT_DELIMITER);
+		isLogin = true;
+		strcpy(secretKey, token);
+	}
+	else if (strcmp(typeReq, "101") == 0) {
+		isLogin = false;
+		printf("Login failed, account or password not correct! \n");
+	}
+}
+
+
+void showRegisterScene() {
+	printf("\n");
+	char _userName[BUFF_SIZE], _password1[BUFF_SIZE], _password2[BUFF_SIZE];
+	printf("Username: ");
+	gets_s(_userName, BUFF_SIZE);
+	printf("Password: ");
+	gets_s(_password1, BUFF_SIZE);
+	printf("Password Again: ");
+	gets_s(_password2, BUFF_SIZE);
+	if (strcmp(_password1, _password2) == 0) {
+		char request[BUFF_SIZE];
+		snprintf(request, sizeof(request), "REGISTER%s%s%s%s"
+			, SPLIT_DELIMITER, _userName, SPLIT_DELIMITER, _password1);
+		int ret = sendMessage(request);
+		if (ret == SOCKET_ERROR)
+			printf("Error %d\n", WSAGetLastError());
+		char response[BUFF_SIZE];
+		ret = receiveMessage(response);
+		if (ret > 0) {
+			printf("Reponse from server: %s \n", response);
+		}
+		char * typeReq = strtok(response, SPLIT_DELIMITER);
+		if (strcmp(typeReq, "200") == 0) {
+			printf("Register success!\n");
+		}
+		else if (strcmp(typeReq, "201") == 0) {
+			printf("User already exists!\n");
+		}
+	}
+	else {
+		printf("Password did not match: Please try again... \n");
+		showRegisterScene();
+	}
+
 }
