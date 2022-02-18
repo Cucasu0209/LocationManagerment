@@ -1,4 +1,5 @@
-
+#define _CRT_SECURE_NO_WARNINGS
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -9,10 +10,15 @@
 #include <windows.h>
 
 #define BUFF_SIZE  2048
+#define ENDING_DELIMITER "\r\n"
 #pragma comment (lib, "Ws2_32.lib")
 using namespace std;
 
-//MODEL
+int sendMessage(char* msg);
+int receiveMessage(char* buff);
+char* getSubStr(char *, int, int);
+char * formatStr(char*);
+
 struct Location {
 	char placeID[BUFF_SIZE];
 	char placeName[BUFF_SIZE];
@@ -24,6 +30,7 @@ struct Location {
 SOCKET client;
 bool isLogin = false;
 char username[BUFF_SIZE];
+char secretKey[BUFF_SIZE];
 
 
 //CONTROLLER
@@ -94,21 +101,32 @@ bool yesNoQuestion() {
 }
 
 void showLoginScene() {
-	printf("\n");
 	char _userName[BUFF_SIZE], _password[BUFF_SIZE];
-	printf("Username: ");
+	printf("\nUsername: ");
 	gets_s(_userName, BUFF_SIZE);
-	printf("Password: ");
+	printf("\nPassword: ");
 	gets_s(_password, BUFF_SIZE);
-	if (loginUser(_userName, _password)) {
-		copyCharArray(username, _userName, BUFF_SIZE);
-		printf("-LOG: Login Success.\n");
+	char request[BUFF_SIZE];
+	snprintf(request, sizeof(request), "LOGIN%s%s%s%s"
+		,ENDING_DELIMITER, _userName, ENDING_DELIMITER, _password);
+	int ret = sendMessage(request);
+	if (ret == SOCKET_ERROR)
+		printf("Error %d\n", WSAGetLastError());
+	char response[BUFF_SIZE];
+	ret = receiveMessage(response);
+	if (ret > 0) {
+		printf("Reponse from server: %s \n", response);
+	}
+	char * typeReq = strtok(response, ENDING_DELIMITER);
+	if (strcmp(typeReq, "100") == 0) {
+		char * token = strtok(NULL, ENDING_DELIMITER);
 		isLogin = true;
+		strcpy(secretKey, token);
 	}
-	else {
-		printf("-LOG: Login Fail.\n");
+	else if (strcmp(typeReq, "101") == 0) {
+		isLogin = false;
+		printf("Login failed, account or password not correct! \n");
 	}
-
 }
 
 void showRegisterScene() {
@@ -412,32 +430,7 @@ void showHomeScene() {
 	}
 }
 
-//SOCKET
-int sendMessage(char* msg) {
-	char sendBuff[BUFF_SIZE];
-	int i;
-	for(i = 0; msg[i] != 0; i++) {
-		sendBuff[i] = msg[i];
-	}
-	sendBuff[i] = '\r';
-	sendBuff[i] = '\n';
-	int msgLength = i + 2;
-	return send(client, sendBuff, msgLength, 0);
-}
 
-int receiveMessage(char* buff) {
-	int ret = recv(client, buff, BUFF_SIZE, 0);
-	if (ret == SOCKET_ERROR) {
-		if (WSAGetLastError() == WSAETIMEDOUT)
-			printf("Time out!");
-		else printf("Error : %d.Cannot receive data.\n", WSAGetLastError());
-	}
-	else if (strlen(buff) > 0) {
-		buff[ret] = 0;
-		printf("%s\n", buff);
-	}
-	return ret;
-}
 
 //MAIN
 int main(int argc, char* argv[])
@@ -485,4 +478,49 @@ int main(int argc, char* argv[])
 	//Step 6: Terminate Winsock
 	WSACleanup();
 	return 0;
+}
+
+
+//SOCKET
+int sendMessage(char* msg) {
+	char sendBuff[BUFF_SIZE];
+	int i;
+	for (i = 0; msg[i] != 0; i++) {
+		sendBuff[i] = msg[i];
+	}
+	/*sendBuff[i] = '\r';
+	sendBuff[i] = '\n';*/
+	return send(client, sendBuff, i, 0);
+}
+
+int receiveMessage(char* buff) {
+	int ret = recv(client, buff, BUFF_SIZE, 0);
+	if (ret == SOCKET_ERROR) {
+		if (WSAGetLastError() == WSAETIMEDOUT)
+			printf("Time out!");
+		else printf("Error : %d.Cannot receive data.\n", WSAGetLastError());
+	}
+	else if (strlen(buff) > 0) {
+		buff[ret] = 0;
+		printf("%s\n", buff);
+	}
+	return ret;
+}
+
+char* getSubStr(char * buff, int from, int length) {
+	char* subbuff = (char *)malloc((length + 1) * sizeof(char));
+	memcpy(subbuff, &buff[from], length);
+	subbuff[length] = '\0';
+	return subbuff;
+}
+
+char * formatStr(char* input) {
+	int lenStr = 0;
+	for (int i = 0; i < strlen(input); i++) {
+		if (input[i] == '\0') {
+			lenStr = i;
+		}
+	}
+	char * formatedStr = getSubStr(input, 0, lenStr);
+	return formatedStr;
 }

@@ -20,14 +20,14 @@
 int Receive(SOCKET, char *, int, int);
 int Send(SOCKET, char *, int, int);
 char* getSubStr(char *, int , int );
-void handleLogin(char *);
+void handleLogin(SOCKET, char *);
 sql::Connection * getDbConnection();
 
 
 
 int main(int argc, char* argv[])
 {
-	handleLogin("LOGIN\r\nthang\r\nthangtv32");
+	//handleLogin(NULL, "LOGIN\r\nthangtv\r\n1");
 	DWORD		nEvents = 0;
 	DWORD		index;
 	SOCKET		socks[WSA_MAXIMUM_WAIT_EVENTS];
@@ -145,9 +145,11 @@ int main(int argc, char* argv[])
 			else {
 				//echo to client
 				recvBuff[ret] = 0;
-				char * typeReq = strtok(recvBuff, ENDING_DELIMITER);
+				char * tmpSplitFunc = (char*) malloc(ret * sizeof(char));
+				strcpy(tmpSplitFunc, recvBuff);
+				char * typeReq = strtok(tmpSplitFunc, ENDING_DELIMITER);
 				if (strcmp(typeReq, "LOGIN") == 0) {
-					handleLogin(recvBuff);
+					handleLogin(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "REGISTER") == 0) {
 
@@ -176,7 +178,6 @@ int main(int argc, char* argv[])
 				else if (strcmp(typeReq, "SHARE") == 0) {
 
 				}
-				Send(socks[index], recvBuff, strlen(recvBuff), 0);
 
 				//reset event
 				WSAResetEvent(events[index]);
@@ -203,7 +204,6 @@ int Receive(SOCKET s, char *buff, int size, int flags) {
 	int n;
 	n = recv(s, buff, size, flags);
 	buff[n] = 0;
-	printf("Receive data %s\n", buff);
 	if (n == SOCKET_ERROR)
 		printf("Error %d: Cannot receive data.\n", WSAGetLastError());
 	else if (n == 0)
@@ -236,29 +236,43 @@ sql::Connection * getDbConnection() {
 	driver = get_driver_instance();
 	con = driver->connect("tcp://127.0.0.1:3306", "root", "root");
 	/* Connect to the MySQL database */
-	con->setSchema("quickstartdb");
+	con->setSchema("location_management");
 	return con;
 }
-void handleLogin(char * buff) {
+void handleLogin(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
 	char * typeReq = strtok(requestStr, ENDING_DELIMITER);
-	char * username = strtok(NULL, "\r\n");
-	char * password = strtok(NULL, "\r\n");
-	printf("Handle request LOGIN: %s    %s", username, password);
-
+	char * username = strtok(NULL, ENDING_DELIMITER);
+	char * password = strtok(NULL, ENDING_DELIMITER);
+	printf("Handle request LOGIN: account=%s  password=%s\n", username, password);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), "SELECT token from User where username='%s' and password='%s'"
+								, username, password);
 
 	//query DB
 	sql::Statement *stmt;
 	sql::ResultSet *res;
 	sql::Connection * con = getDbConnection();
 	stmt = con->createStatement();
-	res = stmt->executeQuery("SELECT 'Hello World!' AS _message");
+	res = stmt->executeQuery(sql);
+	char response[BUFF_SIZE];
+	bool isSuccess = false;
 	while (res->next()) {
-		printf("MySQl reply .... \n");
-		/* Access column data by alias or column name */
-		printf("Account logined: %s", res->getString("_message"));
+		isSuccess = true;
+		printf("Response token for user %s: %s",username, res->getString("token"));
+		// send response with success code
+		snprintf(response, sizeof(response), "100%s%s"
+			, ENDING_DELIMITER,res->getString("token"));	
 	}
+	if (isSuccess){
+		Send(s, response, strlen(response), 0);
+
+	}
+	else {
+		Send(s, "101", 3, 0);
+	}
+	// send response with fail code
 	delete res;
 	delete stmt;
 	delete con;
