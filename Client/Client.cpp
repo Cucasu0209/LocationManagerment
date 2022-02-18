@@ -1,10 +1,12 @@
 
+
 #include "stdafx.h"
-#include "stdio.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include "winsock2.h"
 #include "ws2tcpip.h"
 #include "string"
+#include <windows.h>
 
 #define BUFF_SIZE  2048
 #pragma comment (lib, "Ws2_32.lib")
@@ -440,6 +442,8 @@ int receiveMessage(char* buff) {
 //MAIN
 int main(int argc, char* argv[])
 {
+	// TODO tranthang2404: delete after none debug
+	Sleep(1000);
 	//Step 1: Inittiate WinSock
 	WSADATA wsaData;
 	WORD wVersion = MAKEWORD(2, 2);
@@ -457,10 +461,8 @@ int main(int argc, char* argv[])
 
 	//Step 3: Specify server address
 	sockaddr_in serverAddr;
-	u_short SERVER_PORT;
-	inet_pton(AF_INET, argv[2], &SERVER_PORT);
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(SERVER_PORT);
+	serverAddr.sin_port = htons(atoi(argv[2]));
 	inet_pton(AF_INET, argv[1], &serverAddr.sin_addr);
 
 	if (connect(client, (sockaddr *)&serverAddr, sizeof(serverAddr))) {

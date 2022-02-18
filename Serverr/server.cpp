@@ -3,6 +3,13 @@
 #include <stdio.h>
 #include <conio.h>
 #include <WinSock2.h>
+
+#include "mysql_connection.h"
+#include <cppconn/driver.h>
+#include <cppconn/exception.h>
+#include <cppconn/resultset.h>
+#include <cppconn/statement.h>
+
 #pragma comment(lib, "Ws2_32.lib")
 
 #define ENDING_DELIMITER "\r\n"
@@ -12,19 +19,15 @@
 
 int Receive(SOCKET, char *, int, int);
 int Send(SOCKET, char *, int, int);
-char* getSubStr(char * buff, int from, int length) {
-	char* subbuff = (char *)malloc((length + 1) * sizeof(char));
-	memcpy(subbuff, &buff[from], length);
-	subbuff[length] = '\0';
-	return subbuff;
-}
-
+char* getSubStr(char *, int , int );
 void handleLogin(char *);
+sql::Connection * getDbConnection();
+
 
 
 int main(int argc, char* argv[])
 {
-	handleLogin("LOGIN\r\nthang\r\nthang2\r\n12");
+	handleLogin("LOGIN\r\nthang\r\nthangtv32");
 	DWORD		nEvents = 0;
 	DWORD		index;
 	SOCKET		socks[WSA_MAXIMUM_WAIT_EVENTS];
@@ -219,6 +222,23 @@ int Send(SOCKET s, char *buff, int size, int flags) {
 	return n;
 }
 
+char* getSubStr(char * buff, int from, int length) {
+	char* subbuff = (char *)malloc((length + 1) * sizeof(char));
+	memcpy(subbuff, &buff[from], length);
+	subbuff[length] = '\0';
+	return subbuff;
+}
+
+sql::Connection * getDbConnection() {
+	sql::Driver *driver;
+	sql::Connection *con;
+	/* Create a connection */
+	driver = get_driver_instance();
+	con = driver->connect("tcp://127.0.0.1:3306", "root", "root");
+	/* Connect to the MySQL database */
+	con->setSchema("quickstartdb");
+	return con;
+}
 void handleLogin(char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -229,7 +249,19 @@ void handleLogin(char * buff) {
 
 
 	//query DB
-
+	sql::Statement *stmt;
+	sql::ResultSet *res;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	res = stmt->executeQuery("SELECT 'Hello World!' AS _message");
+	while (res->next()) {
+		printf("MySQl reply .... \n");
+		/* Access column data by alias or column name */
+		printf("Account logined: %s", res->getString("_message"));
+	}
+	delete res;
+	delete stmt;
+	delete con;
 
 	// xư lý response code và send lại cho client
 }
