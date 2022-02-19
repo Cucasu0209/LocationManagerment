@@ -10,20 +10,21 @@
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
 #include <cppconn/statement.h>
+#include "Connection.h"
+#include "StringService.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
-#define SECRET_LEN 30
+
 #define SPLIT_DELIMITER "\##"
 #define ENDING_DELIMITER "\r\n"
 #define PORT 6600
 #define BUFF_SIZE 2048
 #define SERVER_ADDR "127.0.0.1"
 
-sql::Connection *conSingleton;
 int Receive(SOCKET, char *, int, int);
 int Send(SOCKET, char *, int, int);
-char* getSubStr(char *, int , int );
+void handleMessage(SOCKET, char *, int);
 void handleLogin(SOCKET, char *);
 void handleRegister(SOCKET, char *);
 void handleListCategory(SOCKET, char *);
@@ -34,9 +35,6 @@ void handleSharePlace(SOCKET, char *);
 void handleAddPlace(SOCKET, char *);
 void handleAddCategory(SOCKET, char *);
 void handleGetStatusAccount(SOCKET, char *);
-
-char * generateString(char *);
-sql::Connection * getDbConnection();
 
 
 
@@ -106,7 +104,8 @@ int main(int argc, char* argv[])
 		index = WSAWaitForMultipleEvents(nEvents, events, FALSE, WSA_INFINITE, FALSE);
 		if (index == WSA_WAIT_FAILED) {
 			printf("Error %d: WSAWaitForMultipleEvents() failed\n", WSAGetLastError());
-			break;
+			//need to change
+			continue;
 		}
 
 		index = index - WSA_WAIT_EVENT_0;
@@ -162,40 +161,8 @@ int main(int argc, char* argv[])
 			else {
 				//echo to client
 				recvBuff[ret] = 0;
-				char * tmpSplitFunc = (char*) malloc(ret * sizeof(char));
-				strcpy(tmpSplitFunc, recvBuff);
-				char * typeReq = strtok(tmpSplitFunc, SPLIT_DELIMITER);
-				if (strcmp(typeReq, "LOGIN") == 0) {
-					handleLogin(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "REGISTER") == 0) {
-					handleRegister(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "SHAREPL") == 0) {
-					handleSharePlace(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "SAVEPL") == 0) {
-					handleAddPlace(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "UPDATEPL") == 0) {
-					handleUpdatePlace(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "DELETEPL") == 0) {
-					handleDeletePlace(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "LISTPL") == 0) {
-					handleListPlace(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "LISTCA") == 0) {
-					handleListCategory(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "CREATECA") == 0) {
-					handleAddCategory(socks[index], recvBuff);
-				}
-				else if (strcmp(typeReq, "STATUS") == 0) {
-					handleGetStatusAccount(socks[index], recvBuff);
-				}
-
+				handleMessage(socks[index], recvBuff, ret);
+				
 				//reset event
 				WSAResetEvent(events[index]);
 			}
@@ -236,25 +203,6 @@ int Send(SOCKET s, char *buff, int size, int flags) {
 		printf("Error %d: Cannot send data.\n", WSAGetLastError());
 
 	return n;
-}
-
-char * generateString(char * username) {
-	char keyGen[SECRET_LEN];
-	char charArr[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/,.-+=~`<>:";
-	for (int index = 0; index < SECRET_LEN; index++)
-	{
-		keyGen[index] = charArr[rand() % (sizeof charArr - 1)];
-	}
-	char * tmp = (char *)malloc(sizeof(char) * 100);
-	strcpy(tmp, username);
-	return strcat(tmp, keyGen);
-}
-
-char* getSubStr(char * buff, int from, int length) {
-	char* subbuff = (char *)malloc((length + 1) * sizeof(char));
-	memcpy(subbuff, &buff[from], length);
-	subbuff[length] = '\0';
-	return subbuff;
 }
 
 void handleLogin(SOCKET s, char * buff) {
@@ -658,22 +606,39 @@ void handleGetStatusAccount(SOCKET s, char * buff) {
 	delete res;
 	delete stmt;
 }
-sql::Connection * getDbConnection() {
-	if (conSingleton != NULL && conSingleton->isValid() && conSingleton->isClosed() == false) {
-		return conSingleton;
+
+void handleMessage(SOCKET s, char * recvBuff, int recv_size){
+	char * tmpSplitFunc = (char*)malloc(recv_size * sizeof(char));
+	strcpy(tmpSplitFunc, recvBuff);
+	char * typeReq = strtok(tmpSplitFunc, SPLIT_DELIMITER);
+	if (strcmp(typeReq, "LOGIN") == 0) {
+		handleLogin(s, recvBuff);
 	}
-	try {
-		sql::Driver *driver;
-		sql::Connection *con;
-		/* Create a connection */
-		driver = get_driver_instance();
-		con = driver->connect("127.0.0.1:3306", "root", "root");
-		/* Connect to the MySQL database */
-		con->setSchema("location_management");
-		conSingleton = con;
-		return con;
+	else if (strcmp(typeReq, "REGISTER") == 0) {
+		handleRegister(s, recvBuff);
 	}
-	catch (sql::SQLException &e) {
-		std::cout << "# ERR: " << e.what() << std::endl;
+	else if (strcmp(typeReq, "SHAREPL") == 0) {
+		handleSharePlace(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "SAVEPL") == 0) {
+		handleAddPlace(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "UPDATEPL") == 0) {
+		handleUpdatePlace(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "DELETEPL") == 0) {
+		handleDeletePlace(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "LISTPL") == 0) {
+		handleListPlace(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "LISTCA") == 0) {
+		handleListCategory(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "CREATECA") == 0) {
+		handleAddCategory(s, recvBuff);
+	}
+	else if (strcmp(typeReq, "STATUS") == 0) {
+		handleGetStatusAccount(s, recvBuff);
 	}
 }
