@@ -251,7 +251,7 @@ void handleRegister(SOCKET s, char * buff) {
 	
 	printf("Handle request Register: account=%s  password=%s\n", username, password);
 	char sql[BUFF_SIZE];
-	snprintf(sql, sizeof(sql), "INSERT INTO location_management.`user`(username, password, token) VALUES('%s', '%s', '%s')"
+	snprintf(sql, sizeof(sql), "INSERT INTO `user`(username, password, token) VALUES('%s', '%s', '%s')"
 		, username, password, token);
 	printf("Query: %s\n", sql);
 	//query DB
@@ -483,7 +483,7 @@ void handleSharePlace(SOCKET s, char * buff) {
 
 	printf("Handle request SHARE_PLACE: placeid=%s user_share=%s token=%s\n", placeid, user_be_shared, token);
 	char sql[BUFF_SIZE];
-	snprintf(sql, sizeof(sql), "INSERT INTO location_management.userplace(username, placeid, categoryid, user_share) \
+	snprintf(sql, sizeof(sql), "INSERT INTO userplace(username, placeid, categoryid, user_share) \
 		VALUES('%s', %d, 0, (select username from `user` where user.token = '%s'))"
 		, user_be_shared,  atoi(placeid), token);
 	printf("Query: %s\n", sql);
@@ -515,7 +515,7 @@ void handleAddPlace(SOCKET s, char * buff) {
 
 	printf("Handle request ADD_PLACE: place_name=%s category_id=%s token=%s\n", place_name, category_id, token);
 	char sql[BUFF_SIZE];
-	snprintf(sql, sizeof(sql), "INSERT INTO location_management.place(name) VALUES('%s')"
+	snprintf(sql, sizeof(sql), "INSERT INTO place(name) VALUES('%s')"
 		, place_name);
 	printf("Query: %s\n", sql);
 	//query DB
@@ -524,7 +524,7 @@ void handleAddPlace(SOCKET s, char * buff) {
 	stmt = con->createStatement();
 	try {
 		bool res = stmt->execute(sql);
-		snprintf(sql, sizeof(sql), "INSERT INTO location_management.userplace(username, placeid, categoryid, user_share) \
+		snprintf(sql, sizeof(sql), "INSERT INTO userplace(username, placeid, categoryid, user_share) \
 			VALUES((select username from `user` where user.token = '%s'), (SELECT LAST_INSERT_ID()), %d, '');"
 			, token, atoi(category_id));
 		printf("Query: %s\n", sql);
@@ -549,7 +549,7 @@ void handleAddCategory(SOCKET s, char * buff) {
 
 	printf("Handle request ADD_CATEGORY: category_name=%s  token=%s\n", category_name, token);
 	char sql[BUFF_SIZE];
-	snprintf(sql, sizeof(sql), "INSERT INTO location_management.category(name, user_create) \
+	snprintf(sql, sizeof(sql), "INSERT INTO category(name, user_create) \
 		VALUES('%s', (select username from `user` where user.token = '%s'))"
 		, category_name, token);
 	printf("Query: %s\n", sql);
