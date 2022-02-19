@@ -204,7 +204,6 @@ int main(int argc, char* argv[])
 		if (sockEvent.lNetworkEvents & FD_CLOSE) {
 			if (sockEvent.iErrorCode[FD_CLOSE_BIT] != 0) {
 				printf("FD_CLOSE failed with error %d\n", sockEvent.iErrorCode[FD_CLOSE_BIT]);
-				break;
 			}
 			//Release socket and event
 			closesocket(socks[index]);

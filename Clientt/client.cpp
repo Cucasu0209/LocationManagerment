@@ -73,14 +73,14 @@ bool yesNoQuestion() {
 }
 
 void showAllLocationByType(int categoryid, bool isShareType=false){
+	printf("================    LOCATION LIST      ================\n");
+	printf("0. Back.\n");
 	char request[BUFF_SIZE];
 	if (isShareType) {
-		printf("danh sach dia diem chua gan category \n");
 		snprintf(request, sizeof(request), "LISTPL%s%c%s%s"
 			, SPLIT_DELIMITER, '0', SPLIT_DELIMITER,secretKey);
 	}
 	else {
-		printf("danh sach dia diem categoryid=%d \n", categoryid);
 		snprintf(request, sizeof(request), "LISTPL%s%d%s%s"
 			, SPLIT_DELIMITER, categoryid, SPLIT_DELIMITER, secretKey);
 	}
@@ -90,39 +90,34 @@ void showAllLocationByType(int categoryid, bool isShareType=false){
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "700") == 0) {
-		printf("\n");
-		printf("Please Select one location.\n");
 		if (isShareType) {
-			printf("PlaceId\t\tUSERSHARE\t\tNAME\n");
+			printf("PlaceId\t\tUSERSHARE\t\t\tNAME\n");
 			char * place_id = strtok(NULL, SPLIT_DELIMITER);
 			while (place_id != NULL) {
 				char * place_name = strtok(NULL, SPLIT_DELIMITER);
 				char * user_share = strtok(NULL, SPLIT_DELIMITER);
-				printf("%s\t\t%s\t%s\n", place_id, user_share, place_name);
+				printf("%-7s\t\t%-20s\t\t%-40s\n", place_id, user_share, place_name);
 				//bypass category=0
 				strtok(NULL, SPLIT_DELIMITER);
 				place_id = strtok(NULL, SPLIT_DELIMITER);
 			}
 		}
 		else {
-			printf("PlaceId\t\tUSERSHARE\tCATEGORY_NAME\t\tPLACE_NAME\n");
+			printf("PlaceId\t\tUSERSHARE\t\tCATEGORY_NAME\t\t\tPLACE_NAME\n");
 			char * place_id = strtok(NULL, SPLIT_DELIMITER);
 			while (place_id != NULL) {
 				char * place_name = strtok(NULL, SPLIT_DELIMITER);
 				char * category_name = strtok(NULL, SPLIT_DELIMITER);
 				char * user_share = strtok(NULL, SPLIT_DELIMITER);
-				printf("%s\t\t%s\t%s\t%s\n", place_id, user_share, category_name, place_name);
+				printf("%-7s\t\t%-20s\t%-30s\t%-40s\n", place_id, user_share, category_name, place_name);
 				place_id = strtok(NULL, SPLIT_DELIMITER);
 			}
 		}
 		
 		printf("==================================================\n");
-		printf("You Select 1 locationId: ");
+		printf("You select one location ID: ");
 		while (true) {
 			int in = getInputOption();
 			if (in < 0) {
@@ -148,6 +143,8 @@ void showNotifyLocationScene(){
 }
 
 int showCategorySelector() {
+	printf("================    CATEGORY LIST      ================\n");
+	printf("0. BACK\n");
 	char request[BUFF_SIZE];
 	snprintf(request, sizeof(request), "LISTCA%s%s"
 		, SPLIT_DELIMITER, secretKey);
@@ -156,22 +153,18 @@ int showCategorySelector() {
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "800") == 0) {
 		printf("\n");
-		printf("Please Select one category.\n");
-		printf("CATEGORY_ID\t NAME\n");
+		printf("CATEGORY_ID\t\tNAME\n");
 		char * category_id = strtok(NULL, SPLIT_DELIMITER);
 		while (category_id != NULL) {
 			char * category_name = strtok(NULL, SPLIT_DELIMITER);
-			printf("%s\t\t%s\n", category_id, category_name);
+			printf("%.11s\t\t%.40s\n", category_id, category_name);
 			category_id = strtok(NULL, SPLIT_DELIMITER);
 		}
 		printf("==================================================\n");
-		printf("You Select 1 category: ");
+		printf("You Select one category ID: ");
 		while (true) {
 			int in = getInputOption();
 			if (in < 0) {
@@ -213,9 +206,6 @@ void showAddNewLocationScene() {
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "400") == 0) {
 		printf("Create success!\n");
@@ -244,9 +234,6 @@ void showAddNewCategoryScence() {
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "900") == 0) {
 		printf("Create success!\n");
@@ -289,9 +276,6 @@ void showUpdateLocationDetail(int locationID, bool isShareType) {
 			printf("Error %d\n", WSAGetLastError());
 		char response[BUFF_SIZE];
 		ret = receiveMessage(response);
-		if (ret > 0) {
-			printf("Reponse from server: %s \n", response);
-		}
 		char * typeReq = strtok(response, SPLIT_DELIMITER);
 		if (strcmp(typeReq, "500") == 0) {
 			printf("Update success!\n");
@@ -315,9 +299,6 @@ void showDeleteLocation(int locationId) {
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "600") == 0) {
 		printf("Delete success!\n");
@@ -340,9 +321,6 @@ void showShareLocation(int locationId) {
 	printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "300") == 0) {
 		printf("Share success!\n");
@@ -395,8 +373,6 @@ void showLocationDetail(int locationID, bool isShareType) {
 
 void showLocationsScene() {
 	printf("\n");
-	printf("================    CATEGORY LIST      ================\n");
-	printf("0. Back.\n");
 	int input = showCategorySelector();
 	if (input == -1) {
 		return;
@@ -439,9 +415,6 @@ int getNotifyStatus() {
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "1000") == 0) {
 		char * count_share_unmanage_location = strtok(NULL, SPLIT_DELIMITER);
@@ -496,9 +469,9 @@ void showHomeScene() {
 //MAIN
 int main(int argc, char* argv[])
 {
-	isLogin = true;
+	/*isLogin = true;
 	strcpy(secretKey, "tokengenerate");
-	strcpy(UserName, "thangtv");
+	strcpy(UserName, "thangtv");*/
 	// TODO tranthang2404: delete after none debug
 	Sleep(500);
 	//Step 1: Inittiate WinSock
@@ -611,9 +584,6 @@ void showLoginScene() {
 		printf("Error %d\n", WSAGetLastError());
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
-	if (ret > 0) {
-		printf("Reponse from server: %s \n", response);
-	}
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
 	if (strcmp(typeReq, "100") == 0) {
 		char * token = strtok(NULL, SPLIT_DELIMITER);
@@ -645,9 +615,6 @@ void showRegisterScene() {
 			printf("Error %d\n", WSAGetLastError());
 		char response[BUFF_SIZE];
 		ret = receiveMessage(response);
-		if (ret > 0) {
-			printf("Reponse from server: %s \n", response);
-		}
 		char * typeReq = strtok(response, SPLIT_DELIMITER);
 		if (strcmp(typeReq, "200") == 0) {
 			printf("Register success!\n");
