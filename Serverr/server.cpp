@@ -20,6 +20,7 @@
 #define BUFF_SIZE 2048
 #define SERVER_ADDR "127.0.0.1"
 
+sql::Connection *conSingleton;
 int Receive(SOCKET, char *, int, int);
 int Send(SOCKET, char *, int, int);
 char* getSubStr(char *, int , int );
@@ -27,6 +28,13 @@ void handleLogin(SOCKET, char *);
 void handleRegister(SOCKET, char *);
 void handleListCategory(SOCKET, char *);
 void handleListPlace(SOCKET, char *);
+void handleUpdatePlace(SOCKET, char *);
+void handleDeletePlace(SOCKET, char *);
+void handleSharePlace(SOCKET, char *);
+void handleAddPlace(SOCKET, char *);
+void handleAddCategory(SOCKET, char *);
+void handleGetStatusAccount(SOCKET, char *);
+
 char * generateString(char *);
 sql::Connection * getDbConnection();
 
@@ -34,6 +42,7 @@ sql::Connection * getDbConnection();
 
 int main(int argc, char* argv[])
 {
+	getDbConnection();
 	//handleListCategory(NULL, "LISTCA\##tokengenerate");
 	//handleLogin(NULL, "LOGIN\r\nthangtv\r\n1");
 	DWORD		nEvents = 0;
@@ -162,17 +171,17 @@ int main(int argc, char* argv[])
 				else if (strcmp(typeReq, "REGISTER") == 0) {
 					handleRegister(socks[index], recvBuff);
 				}
-				else if (strcmp(typeReq, "SHARE") == 0) {
-
+				else if (strcmp(typeReq, "SHAREPL") == 0) {
+					handleSharePlace(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "SAVEPL") == 0) {
-
+					handleAddPlace(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "UPDATEPL") == 0) {
-
+					handleUpdatePlace(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "DELETEPL") == 0) {
-
+					handleDeletePlace(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "LISTPL") == 0) {
 					handleListPlace(socks[index], recvBuff);
@@ -181,7 +190,10 @@ int main(int argc, char* argv[])
 					handleListCategory(socks[index], recvBuff);
 				}
 				else if (strcmp(typeReq, "CREATECA") == 0) {
-
+					handleAddCategory(socks[index], recvBuff);
+				}
+				else if (strcmp(typeReq, "STATUS") == 0) {
+					handleGetStatusAccount(socks[index], recvBuff);
 				}
 
 				//reset event
@@ -246,16 +258,6 @@ char* getSubStr(char * buff, int from, int length) {
 	return subbuff;
 }
 
-sql::Connection * getDbConnection() {
-	sql::Driver *driver;
-	sql::Connection *con;
-	/* Create a connection */
-	driver = get_driver_instance();
-	con = driver->connect("tcp://127.0.0.1:3306", "root", "root");
-	/* Connect to the MySQL database */
-	con->setSchema("location_management");
-	return con;
-}
 void handleLogin(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -290,7 +292,6 @@ void handleLogin(SOCKET s, char * buff) {
 	}
 	delete res;
 	delete stmt;
-	delete con;
 }
 
 void handleRegister(SOCKET s, char * buff) {
@@ -321,7 +322,6 @@ void handleRegister(SOCKET s, char * buff) {
 
 	
 	delete stmt;
-	delete con;
 }
 
 void handleListCategory(SOCKET s, char * buff) {
@@ -362,7 +362,6 @@ void handleListCategory(SOCKET s, char * buff) {
 	}
 	delete res;
 	delete stmt;
-	delete con;
 }
 
 void handleListPlace(SOCKET s, char * buff) {
@@ -376,14 +375,17 @@ void handleListPlace(SOCKET s, char * buff) {
 		printf("Handle request LIST_PLACE user be shared: token=%s\n", token);
 		snprintf(sql, sizeof(sql),
 			"select  p.placeid, p.name , up.user_share, up.categoryid from userplace up, `user` u, place p\
-		where u.token = '%s' and p.placeid = up.placeid and u.username = up.username and up.categoryid=0"
+		where u.token = '%s' and p.placeid = up.placeid and u.username = up.username and up.categoryid=0 \
+		order by p.placeid"
 			, token);
 	}
 	else {
 		printf("Handle request LIST_PLACE: categoryid=%d token=%s\n",categoryId, token);
 		snprintf(sql, sizeof(sql),
-			"select p.placeid, p.name, up.user_share, c.name from userplace up, `user` u, place p, category c \
-		where u.token = '%s' and up.categoryid = c.categoryid and p.placeid = up.placeid and u.username = up.username and up.categoryid=%d"
+			"select p.placeid, p.name, c.name, up.user_share from userplace up, `user` u, place p, category c \
+		where u.token = '%s' and up.categoryid = c.categoryid and p.placeid = up.placeid \
+		and u.username = up.username and up.categoryid=%d \
+		order by p.placeid"
 			, token, categoryId);
 	}
 	printf("Query: %s\n", sql);
@@ -400,7 +402,7 @@ void handleListPlace(SOCKET s, char * buff) {
 		isSuccess = true;
 		char buildCategoryStr[BUFF_SIZE * 2];
 		// send response with success code
-		snprintf(buildCategoryStr, sizeof(buildCategoryStr), "%s%s%s%s%s%s%s%s"
+		snprintf(buildCategoryStr, sizeof(buildCategoryStr), "%s%s%s%s%s%s%s%s "
 			, SPLIT_DELIMITER, res->getString(1).c_str(), SPLIT_DELIMITER, res->getString(2).c_str(),
 			SPLIT_DELIMITER, res->getString(3).c_str(), SPLIT_DELIMITER, res->getString(4).c_str());
 		strcat(response, buildCategoryStr);
@@ -414,5 +416,265 @@ void handleListPlace(SOCKET s, char * buff) {
 	}
 	delete res;
 	delete stmt;
-	delete con;
+}
+
+void handleUpdatePlace(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * placeid = strtok(NULL, SPLIT_DELIMITER);
+	char * placename = strtok(NULL, SPLIT_DELIMITER);
+	char * categoryID = strtok(NULL, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+
+	printf("Handle request UPDATE_PLACE: Placeid=%s  Placename=%s\  CategoryID=%s  token=%sn ", placeid, placename, categoryID, token);
+	char sql[BUFF_SIZE];
+	//check perrmission to update name of place
+	if (strcmp(placename, " ") != 0) {
+		snprintf(sql, sizeof(sql), "select count(*) as count from userplace up, place p, `user` u \
+		where up.username = u.username and u.token = '%s' \
+		and up.placeid = p.placeid and up.user_share ='' and p.placeid = %d"
+			, token, atoi(placeid));
+		printf("Query: %s\n", sql);
+		//query DB
+		sql::Statement *stmt;
+		sql::Connection * con = getDbConnection();
+		stmt = con->createStatement();
+		try {
+			sql::ResultSet * res = stmt->executeQuery(sql);
+			while (res->next()) {
+				int count_valid = res->getInt(1);
+				if (count_valid == 0) {
+					Send(s, "501", 3, 0);
+					return;
+				}
+			}
+			//update place name after check permission
+			snprintf(sql, sizeof(sql), "update place set name = '%s' where placeid = %d"
+				, placename, atoi(placeid));
+			printf("Query: %s\n", sql);
+			try {
+				bool res = stmt->execute(sql);
+			}
+			catch (sql::SQLException &e) {
+				std::cout << "# ERR: " << e.what() << std::endl;
+				Send(s, "502", 3, 0);
+				return;
+			}
+			delete stmt;
+		}
+		catch (sql::SQLException &e) {
+			std::cout << "# ERR: " << e.what() << std::endl;
+			Send(s, "502", 3, 0);
+			return;
+		}
+
+		
+	}
+	
+	
+	//update category
+
+	snprintf(sql, sizeof(sql), "update userplace set categoryid=%d \
+	where placeid=%d and username = (select username from user where user.token = '%s')"
+		, atoi(categoryID), atoi(placeid), token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	try {
+		bool res = stmt->execute(sql);
+		Send(s, "500", 3, 0);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, "502", 3, 0);
+	}
+	delete stmt;
+
+	
+}
+
+void handleDeletePlace(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * placeid = strtok(NULL, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+
+	printf("Handle request DELETE_PLACE: placeid=%s  token=%s\n", placeid, token);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), "delete from userplace where  placeid=%d \
+					and username = (select username from `user` where user.token = '%s')"
+		, atoi(placeid), token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	try {
+		bool res = stmt->execute(sql);
+		Send(s, "600", 3, 0);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, "601", 3, 0);
+	}
+
+
+	delete stmt;
+}
+
+void handleSharePlace(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * placeid = strtok(NULL, SPLIT_DELIMITER);
+	char * user_be_shared = strtok(NULL, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+
+	printf("Handle request SHARE_PLACE: placeid=%s user_share=%s token=%s\n", placeid, user_be_shared, token);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), "INSERT INTO location_management.userplace(username, placeid, categoryid, user_share) \
+		VALUES('%s', %d, 0, (select username from `user` where user.token = '%s'))"
+		, user_be_shared,  atoi(placeid), token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	try {
+		bool res = stmt->execute(sql);
+		Send(s, "300", 3, 0);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, "301", 3, 0);
+	}
+
+
+	delete stmt;
+}
+
+
+void handleAddPlace(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * place_name = strtok(NULL, SPLIT_DELIMITER);
+	char * category_id = strtok(NULL, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+
+	printf("Handle request ADD_PLACE: place_name=%s category_id=%s token=%s\n", place_name, category_id, token);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), "INSERT INTO location_management.place(name) VALUES('%s')"
+		, place_name);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	try {
+		bool res = stmt->execute(sql);
+		snprintf(sql, sizeof(sql), "INSERT INTO location_management.userplace(username, placeid, categoryid, user_share) \
+			VALUES((select username from `user` where user.token = '%s'), (SELECT LAST_INSERT_ID()), %d, '');"
+			, token, atoi(category_id));
+		printf("Query: %s\n", sql);
+		res = stmt->execute(sql);
+		Send(s, "400", 3, 0);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, "401", 3, 0);
+	}
+
+
+	delete stmt;
+}
+
+void handleAddCategory(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * category_name = strtok(NULL, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+
+	printf("Handle request ADD_CATEGORY: category_name=%s  token=%s\n", category_name, token);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql), "INSERT INTO location_management.category(name, user_create) \
+		VALUES('%s', (select username from `user` where user.token = '%s'))"
+		, category_name, token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	try {
+		bool res = stmt->execute(sql);
+		Send(s, "900", 3, 0);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, "901", 3, 0);
+	}
+
+
+	delete stmt;
+}
+
+void handleGetStatusAccount(SOCKET s, char * buff) {
+	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
+	strcpy(requestStr, buff);
+	char * typeReq = strtok(requestStr, SPLIT_DELIMITER);
+	char * token = strtok(NULL, SPLIT_DELIMITER);
+	printf("Handle request STATUS: token=%s\n", token);
+	char sql[BUFF_SIZE];
+	snprintf(sql, sizeof(sql),
+		"select  count(*) as count from userplace up, `user` u\
+		where u.token = '%s'  and u.username = up.username and up.categoryid=0"
+		, token);
+	printf("Query: %s\n", sql);
+	//query DB
+	sql::Statement *stmt;
+	sql::ResultSet *res;
+	sql::Connection * con = getDbConnection();
+	stmt = con->createStatement();
+	res = stmt->executeQuery(sql);
+	char response[BUFF_SIZE];
+	bool isSuccess = false;
+	while (res->next()) {
+		isSuccess = true;
+		// send response with success code
+		snprintf(response, sizeof(response), "1000%s%s"
+			, SPLIT_DELIMITER, res->getString("count").c_str());
+	}
+	if (isSuccess) {
+		Send(s, response, strlen(response), 0);
+
+	}
+	else {
+		Send(s, "1001", 3, 0);
+	}
+	delete res;
+	delete stmt;
+}
+sql::Connection * getDbConnection() {
+	if (conSingleton != NULL && conSingleton->isValid() && conSingleton->isClosed() == false) {
+		return conSingleton;
+	}
+	try {
+		sql::Driver *driver;
+		sql::Connection *con;
+		/* Create a connection */
+		driver = get_driver_instance();
+		con = driver->connect("127.0.0.1:3306", "root", "root");
+		/* Connect to the MySQL database */
+		con->setSchema("location_management");
+		conSingleton = con;
+		return con;
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+	}
 }
