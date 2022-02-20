@@ -630,7 +630,7 @@ void showHomeScene() {
 	printf("================       Hello %s        ================\n", UserName);
 	int count_share_unmanage_location = getNotifyStatus();
 	if (count_share_unmanage_location >= 0) {
-		printf("1. You has %d share locations don't have category!\n", count_share_unmanage_location);
+		printf("1. You have %d share locations don't have category!\n", count_share_unmanage_location);
 	}
 
 	printf("2. See all Location by Category\n");
