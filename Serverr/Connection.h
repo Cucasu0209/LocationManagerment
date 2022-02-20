@@ -6,7 +6,10 @@
 #include <cppconn/statement.h>
 
 sql::Connection *conSingleton;
-
+#define DB_HOST "127.0.0.1:3306"   //ip and port mysql 
+#define DB_USER "root"
+#define DB_PASSWORD "root"
+#define DB_NAME "location_management"  //database name
 /*
 * @function getDbConnection : get a connection to database
 *
@@ -23,9 +26,9 @@ sql::Connection * getDbConnection() {
 		sql::Connection *con;
 		/* Create a connection */
 		driver = get_driver_instance();
-		con = driver->connect("127.0.0.1:3306", "root", "root");
+		con = driver->connect(DB_HOST, DB_USER, DB_PASSWORD);
 		/* Connect to the MySQL database */
-		con->setSchema("location_management");
+		con->setSchema(DB_NAME);
 		conSingleton = con;
 		return con;
 	}

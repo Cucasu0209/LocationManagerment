@@ -23,5 +23,8 @@
     <ClInclude Include="InputHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="client-constants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

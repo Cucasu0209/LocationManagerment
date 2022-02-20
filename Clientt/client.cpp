@@ -8,6 +8,7 @@
 #include "string"
 #include <windows.h>
 #include "InputHelper.h"
+#include "client-constants.h"
 
 #define BUFF_SIZE  2048
 #define SPLIT_DELIMITER "\##"
@@ -17,7 +18,6 @@ using namespace std;
 
 int sendMessage(char* msg);
 int receiveMessage(char* buff);
-
 void showFirstScene();
 void showHomeScene();
 int getNotifyStatus();
@@ -31,9 +31,10 @@ void showAddNewLocationScene();
 void showUpdateLocationDetail(int, bool);
 void showDeleteLocation(int);
 void showShareLocation(int);
-void showLocationsScene();
+void showLocationsByCategoryScene();
 
 SOCKET client;
+bool isExitApp = false;
 bool isLogin = false;
 char UserName[BUFF_SIZE];
 char secretKey[BUFF_SIZE];
@@ -74,7 +75,7 @@ int main(int argc, char* argv[])
 	}
 	printf("Connected to server.\n");
 	//Step 4: Communicate with server
-	while (1) {
+	while (!isExitApp) {
 		if (!isLogin) {
 			showFirstScene();
 		}
@@ -91,7 +92,13 @@ int main(int argc, char* argv[])
 }
 
 
-//SOCKET
+/*
+* @function sendMessage : send message to server
+* @param msg : a pointer to message string
+*
+* @return :  bytes send sucess
+*
+*/
 int sendMessage(char* msg) {
 	char sendBuff[BUFF_SIZE];
 	int i;
@@ -103,6 +110,13 @@ int sendMessage(char* msg) {
 	return send(client, sendBuff, i, 0);
 }
 
+/*
+* @function receiveMessage : receive message from server
+* @param msg : a pointer string to receive message 
+*
+* @return :  bytes receive sucess
+*
+*/
 int receiveMessage(char* buff) {
 	int ret = recv(client, buff, BUFF_SIZE, 0);
 	if (ret == SOCKET_ERROR) {
@@ -117,15 +131,17 @@ int receiveMessage(char* buff) {
 }
 
 
+//show log out screen
 void showLogoutScene() {
 	printf("Are you sure to Logout?\n");
 	if (yesNoQuestion()) {
-		printf("-LOG: Log out Success.\n");
+		printf("Log out Success.\n");
 		isLogin = false;
 		strcpy(secretKey, "");
 		strcpy(UserName, "");
 	}
 }
+//show log in screen
 void showLoginScene() {
 	char _userName[BUFF_SIZE], _password[BUFF_SIZE];
 	printf("\t\tUsername: ");
@@ -141,18 +157,18 @@ void showLoginScene() {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "100") == 0) {
+	if (strcmp(typeReq,  LOGIN_OK) == 0) {
 		char * token = strtok(NULL, SPLIT_DELIMITER);
 		isLogin = true;
 		strcpy(secretKey, token);
 	}
-	else if (strcmp(typeReq, "101") == 0) {
+	else if (strcmp(typeReq, LOGIN_NOK) == 0) {
 		isLogin = false;
 		printf("\t\tLogin failed, account or password not correct! \n");
 	}
 }
 
-
+//show register screen
 void showRegisterScene() {
 	char _userName[BUFF_SIZE], _password1[BUFF_SIZE], _password2[BUFF_SIZE];
 	printf("\n\t\tUsername: ");
@@ -171,10 +187,10 @@ void showRegisterScene() {
 		char response[BUFF_SIZE];
 		ret = receiveMessage(response);
 		char * typeReq = strtok(response, SPLIT_DELIMITER);
-		if (strcmp(typeReq, "200") == 0) {
+		if (strcmp(typeReq, REGIS_OK) == 0) {
 			printf("\t\tRegister success!\n");
 		}
-		else if (strcmp(typeReq, "201") == 0) {
+		else if (strcmp(typeReq, REGIS_NOK) == 0) {
 			printf("\t\tUser already exists!\n");
 		}
 	}
@@ -186,7 +202,13 @@ void showRegisterScene() {
 }
 
 
-
+/*
+* @function showAllLocationByType : show all location by type
+* @param categoryid :  ID of category
+* @parm isShareType: check share type (true/false)
+*
+* @return : void
+*/
 void showAllLocationByType(int categoryid, bool isShareType = false) {
 	printf("\n\t\t**********   LOCATION LIST     ********** \n");
 	printf("\t\t0. Back\n");
@@ -206,7 +228,7 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "700") == 0) {
+	if (strcmp(typeReq, LISTPL_OK) == 0) {
 		if (isShareType) {
 			printf("\t\t===================================================================\n");
 			printf("\t\tPlaceId\t\tUSERSHARE\t\t\tNAME\n");
@@ -240,7 +262,7 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 		while (true) {
 			int in = getInputOption();
 			if (in < 0) {
-				printf("\n-LOG: Wrong. Select Again: ");
+				printf("\tWrong. Select Again: ");
 				continue;
 			}
 			else if (in == 0) {
@@ -253,14 +275,21 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 		}
 
 	}
-	else if (strcmp(typeReq, "701") == 0) {
+	else if (strcmp(typeReq, LISTPL_NOK) == 0) {
 		printf("\t\tNo location found!\n");
 	}
 }
+
+//screen to show all share location
 void showNotifyLocationScene() {
 	showAllLocationByType(0, true);
 }
 
+/*
+* @function showCategorySelector : show all category to choice
+*
+* @return : category_id base on choice
+*/
 int showCategorySelector() {
 	printf("\n\t\t**********    CATEGORY LIST     **********\n");
 	printf("\t\t0. BACK\n");
@@ -273,7 +302,7 @@ int showCategorySelector() {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "800") == 0) {
+	if (strcmp(typeReq, LISTCA_OK) == 0) {
 		printf("\t\t=============================================================\n");
 		printf("\t\tCATEGORY_ID\t\tNAME\n");
 		printf("\t\t=============================================================\n");
@@ -288,7 +317,7 @@ int showCategorySelector() {
 		while (true) {
 			int in = getInputOption();
 			if (in < 0) {
-				printf("\n-LOG: Wrong. Select Again: ");
+				printf("\tWrong. Select Again: ");
 				continue;
 			}
 			else if (in == 0) {
@@ -300,13 +329,14 @@ int showCategorySelector() {
 		}
 
 	}
-	else if (strcmp(typeReq, "801") == 0) {
+	else if (strcmp(typeReq, LISTCA_NOK) == 0) {
 		printf("\t\tNo Category found!\n");
 	}
 	return -1;
 
 }
 
+//show screen to add new location
 void showAddNewLocationScene() {
 	char _locationName[BUFF_SIZE] = "";
 	printf("\n\t\tLocation Name: ");
@@ -326,16 +356,16 @@ void showAddNewLocationScene() {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "400") == 0) {
+	if (strcmp(typeReq, ADDPL_OK) == 0) {
 		printf("\t\tCreate success!\n");
 	}
-	else if (strcmp(typeReq, "401") == 0) {
+	else if (strcmp(typeReq, ADDPL_NOK) == 0) {
 		printf("\t\tCreate fail\n");
 	}
 
 
 }
-
+//show screen to add new category
 void showAddNewCategoryScence() {
 	char _catetoryName[BUFF_SIZE] = "";
 	printf("\t\tCategory Name: ");
@@ -354,14 +384,19 @@ void showAddNewCategoryScence() {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "900") == 0) {
+	if (strcmp(typeReq, CREATECA_OK) == 0) {
 		printf("\t\tCreate success!\n");
 	}
-	else if (strcmp(typeReq, "901") == 0) {
+	else if (strcmp(typeReq, CREATECA_NOK) == 0) {
 		printf("\t\tCreate fail\n");
 	}
 }
-
+/*
+* @function showUpdateLocationDetail : handle update a location 
+* @param locationID :  ID of location
+* @parm isShareType: check share type (true/false)
+*
+*/
 void showUpdateLocationDetail(int locationID, bool isShareType) {
 	char _location_name[BUFF_SIZE] = "";
 	if (!isShareType) {
@@ -369,7 +404,7 @@ void showUpdateLocationDetail(int locationID, bool isShareType) {
 		gets_s(_location_name, BUFF_SIZE);
 	}
 	//show all category
-	printf("\n\t\tChoose Category ID( press 0 to no change)\n");
+	//printf("\t\tChoose Category ID( press 0 to no change)\n");
 	int category_choice = showCategorySelector();
 	if (category_choice <= 0 && strcmp(_location_name, "") == 0) {
 		printf("\t\tYou don't change anything!");
@@ -396,19 +431,23 @@ void showUpdateLocationDetail(int locationID, bool isShareType) {
 		char response[BUFF_SIZE];
 		ret = receiveMessage(response);
 		char * typeReq = strtok(response, SPLIT_DELIMITER);
-		if (strcmp(typeReq, "500") == 0) {
+		if (strcmp(typeReq, UPDATEPL_OK) == 0) {
 			printf("\t\tUpdate success!\n");
 		}
-		else if (strcmp(typeReq, "501") == 0) {
+		else if (strcmp(typeReq, UPDATEPL_NON_PERSSION) == 0) {
 			printf("\t\tYou don't have permission to change name of share location!\n");
 		}
-		else if (strcmp(typeReq, "502") == 0) {
+		else if (strcmp(typeReq, UPDATEPL_NOK) == 0) {
 			printf("\t\tUpdate fail!\n");
 		}
 		return;
 	}
 }
-
+/*
+* @function showDeleteLocation : handle delete a location
+* @param locationID :  ID of location
+*
+*/
 void showDeleteLocation(int locationId) {
 	char request[BUFF_SIZE];
 	snprintf(request, sizeof(request), "DELETEPL%s%d%s%s"
@@ -419,14 +458,18 @@ void showDeleteLocation(int locationId) {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "600") == 0) {
+	if (strcmp(typeReq, DELETEPL_OK) == 0) {
 		printf("\t\tDelete success!\n");
 	}
-	else if (strcmp(typeReq, "601") == 0) {
+	else if (strcmp(typeReq, DELETEPL_NOK) == 0) {
 		printf("\t\tDelete fail\n");
 	}
 }
-
+/*
+* @function showDeleteLocation : handle share a location
+* @param locationID :  ID of location
+*
+*/
 void showShareLocation(int locationId) {
 	char _user_be_shared[BUFF_SIZE] = "";
 	printf("\t\tUsername: ");
@@ -441,14 +484,20 @@ void showShareLocation(int locationId) {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "300") == 0) {
+	if (strcmp(typeReq, SHAREPL_OK) == 0) {
 		printf("\t\tShare success!\n");
 	}
-	else if (strcmp(typeReq, "301") == 0) {
+	else if (strcmp(typeReq, SHAREPL_NOK) == 0) {
 		printf("\t\tUser already be shared this location\n");
 	}
 }
 
+/*
+* @function showLocationDetail : handle options with a  location
+* @param locationID :  ID of location
+* @parm isShareType: check share type (true/false)
+*
+*/
 void showLocationDetail(int locationID, bool isShareType) {
 	printf("\t\tOptions with location_ID=%d: \n", locationID);
 	printf("\t\t1.Share		2.Update      3.Delete      4.Cancel\n");
@@ -481,15 +530,15 @@ void showLocationDetail(int locationID, bool isShareType) {
 		case 4:
 			return;
 		default:
-			printf("-LOG: Wrong. Select Again: ");
+			printf("\tWrong. Select Again: ");
 			break;
 		}
 	}
 
 }
 
-
-void showLocationsScene() {
+//screen: choice category to show all locations
+void showLocationsByCategoryScene() {
 	printf("\n");
 	int input = showCategorySelector();
 	if (input == -1) {
@@ -499,12 +548,13 @@ void showLocationsScene() {
 		showAllLocationByType(input);
 	}
 }
-
+//show screen when not login
 void showFirstScene() {
 	printf("\n");
 	printf("================              MENU              =========\n");
 	printf("1. Log in\n");
 	printf("2. Sign up\n");
+	printf("3. Exit app\n");
 	printf("=========================================================\n");
 	printf("You Select: ");
 	while (true) {
@@ -517,14 +567,22 @@ void showFirstScene() {
 		case 2:
 			showRegisterScene();
 			return;
+		case 3:
+			isExitApp = true;
+			return;
 		default:
-			printf("-LOG: Wrong. Select Again: ");
+			printf("\tWrong. Select Again: ");
 			break;
 		}
 	}
 
 }
-
+/*
+* @function getNotifyStatus : get number of unmanaged share locations
+* 
+*  @return : int
+*
+*/
 int getNotifyStatus() {
 	char request[BUFF_SIZE];
 	snprintf(request, sizeof(request), "STATUS%s%s", SPLIT_DELIMITER, secretKey);
@@ -534,14 +592,15 @@ int getNotifyStatus() {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
-	if (strcmp(typeReq, "1000") == 0) {
+	if (strcmp(typeReq, STATUS_OK) == 0) {
 		char * count_share_unmanage_location = strtok(NULL, SPLIT_DELIMITER);
 		return atoi(count_share_unmanage_location);
 	}
-	else if (strcmp(typeReq, "1001") == 0) {
+	else if (strcmp(typeReq, STATUS_NOK) == 0) {
 		return -1;
 	}
 }
+//show home screen when login
 void showHomeScene() {
 	printf("\n");
 	printf("================       Hello %s        ================\n", UserName);
@@ -554,6 +613,7 @@ void showHomeScene() {
 	printf("3. Add new Location\n");
 	printf("4. Add Custom Category\n");
 	printf("5. Log out\n");
+	printf("6. Refresh\n");
 	printf("================================================================\n");
 	printf("You Select: ");
 	while (true) {
@@ -564,7 +624,7 @@ void showHomeScene() {
 			showNotifyLocationScene();
 			return;
 		case 2:
-			showLocationsScene();
+			showLocationsByCategoryScene();
 			return;
 		case 3:
 			showAddNewLocationScene();
@@ -575,8 +635,10 @@ void showHomeScene() {
 		case 5:
 			showLogoutScene();
 			return;
+		case 6:
+			return;
 		default:
-			printf("-LOG: Wrong. Select Again: ");
+			printf("\tWrong. Select Again: ");
 			break;
 		}
 	}

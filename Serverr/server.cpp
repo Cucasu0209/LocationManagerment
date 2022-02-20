@@ -12,6 +12,7 @@
 #include <cppconn/statement.h>
 #include "Connection.h"
 #include "StringService.h"
+#include "server-constants.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -128,7 +129,7 @@ int main(int argc, char* argv[])
 				printf("\nToo many clients.");
 				closesocket(connSock);
 			}
-			else
+			else {
 				for (i = 1; i < WSA_MAXIMUM_WAIT_EVENTS; i++)
 					if (socks[i] == 0) {
 						socks[i] = connSock;
@@ -137,6 +138,7 @@ int main(int argc, char* argv[])
 						nEvents++;
 						break;
 					}
+			}	
 
 			//reset event
 			WSAResetEvent(events[index]);
@@ -205,6 +207,12 @@ int Send(SOCKET s, char *buff, int size, int flags) {
 	return n;
 }
 
+/*
+* @function handleLogin : process message type "LOGIN"
+* @param s : client socket
+* @param buff: pointer request message 
+*
+*/
 void handleLogin(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -221,26 +229,40 @@ void handleLogin(SOCKET s, char * buff) {
 	sql::ResultSet *res;
 	sql::Connection * con = getDbConnection();
 	stmt = con->createStatement();
-	res = stmt->executeQuery(sql);
+	try {
+		res = stmt->executeQuery(sql);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, LOGIN_NOK, strlen(LOGIN_NOK), 0);
+		return;
+	}
 	char response[BUFF_SIZE];
 	bool isSuccess = false;
+
 	while (res->next()) {
 		isSuccess = true;
 		// send response with success code
-		snprintf(response, sizeof(response), "100%s%s"
-			, SPLIT_DELIMITER,res->getString("token").c_str());
+		snprintf(response, sizeof(response), "%s%s%s"
+			, LOGIN_OK,SPLIT_DELIMITER,res->getString("token").c_str());
 	}
 	if (isSuccess){
 		Send(s, response, strlen(response), 0);
 
 	}
 	else {
-		Send(s, "101", 3, 0);
+		Send(s, LOGIN_NOK, strlen(LOGIN_NOK), 0);
 	}
 	delete res;
 	delete stmt;
 }
 
+/*
+* @function handleRegister : process message type "REGISTER"
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleRegister(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -260,17 +282,22 @@ void handleRegister(SOCKET s, char * buff) {
 	stmt = con->createStatement();
 	try {
 		bool res = stmt->execute(sql);
-		Send(s, "200", 3, 0);
+		Send(s, REGIS_OK, strlen(REGIS_OK), 0);
 	}
 	catch (sql::SQLException &e) {
 		std::cout << "# ERR: " << e.what() << std::endl;
-		Send(s, "201", 3, 0);
+		Send(s, REGIS_NOK, strlen(REGIS_NOK), 0);
 	}
 
 	
 	delete stmt;
 }
-
+/*
+* @function handleListCategory : process message type "LISTCA" (list category)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleListCategory(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -288,9 +315,16 @@ void handleListCategory(SOCKET s, char * buff) {
 	sql::ResultSet *res;
 	sql::Connection * con = getDbConnection();
 	stmt = con->createStatement();
-	res = stmt->executeQuery(sql);
+	try {
+		res = stmt->executeQuery(sql);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, LISTCA_NOK, strlen(LISTCA_NOK), 0);
+		return;
+	}
 	char response[BUFF_SIZE];
-	strcpy(response, "800");
+	strcpy(response, LISTCA_OK);
 	bool isSuccess = false;
 	while (res->next()) {
 		isSuccess = true;
@@ -305,12 +339,17 @@ void handleListCategory(SOCKET s, char * buff) {
 
 	}
 	else {
-		Send(s, "801", 3, 0);
+		Send(s, LISTCA_NOK, strlen(LISTCA_NOK), 0);
 	}
 	delete res;
 	delete stmt;
 }
-
+/*
+* @function handleLogin : process message type "LISTPL" (list place)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleListPlace(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -341,9 +380,16 @@ void handleListPlace(SOCKET s, char * buff) {
 	sql::ResultSet *res;
 	sql::Connection * con = getDbConnection();
 	stmt = con->createStatement();
-	res = stmt->executeQuery(sql);
+	try {
+		res = stmt->executeQuery(sql);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, LISTPL_NOK, strlen(LISTPL_NOK), 0);
+		return;
+	}
 	char response[BUFF_SIZE];
-	strcpy(response, "700");
+	strcpy(response, LISTPL_OK);
 	bool isSuccess = false;
 	while (res->next()) {
 		isSuccess = true;
@@ -359,12 +405,17 @@ void handleListPlace(SOCKET s, char * buff) {
 
 	}
 	else {
-		Send(s, "701", 3, 0);
+		Send(s, LISTPL_NOK, strlen(LISTPL_NOK), 0);
 	}
 	delete res;
 	delete stmt;
 }
-
+/*
+* @function handleUpdatePlace : process message type "UPDATEPL"( update place)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleUpdatePlace(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -376,7 +427,7 @@ void handleUpdatePlace(SOCKET s, char * buff) {
 
 	printf("Handle request UPDATE_PLACE: Placeid=%s  Placename=%s\  CategoryID=%s  token=%sn ", placeid, placename, categoryID, token);
 	char sql[BUFF_SIZE];
-	//check perrmission to update name of place
+	//step1: check perrmission to update name of place
 	if (strcmp(placename, " ") != 0) {
 		snprintf(sql, sizeof(sql), "select count(*) as count from userplace up, place p, `user` u \
 		where up.username = u.username and u.token = '%s' \
@@ -392,7 +443,7 @@ void handleUpdatePlace(SOCKET s, char * buff) {
 			while (res->next()) {
 				int count_valid = res->getInt(1);
 				if (count_valid == 0) {
-					Send(s, "501", 3, 0);
+					Send(s, UPDATEPL_NON_PERSSION, strlen(UPDATEPL_NON_PERSSION), 0);
 					return;
 				}
 			}
@@ -405,23 +456,19 @@ void handleUpdatePlace(SOCKET s, char * buff) {
 			}
 			catch (sql::SQLException &e) {
 				std::cout << "# ERR: " << e.what() << std::endl;
-				Send(s, "502", 3, 0);
+				Send(s, UPDATEPL_NOK, strlen(UPDATEPL_NOK), 0);
 				return;
 			}
 			delete stmt;
 		}
 		catch (sql::SQLException &e) {
 			std::cout << "# ERR: " << e.what() << std::endl;
-			Send(s, "502", 3, 0);
+			Send(s, UPDATEPL_NOK, strlen(UPDATEPL_NOK), 0);
 			return;
 		}
-
-		
 	}
 	
-	
-	//update category
-
+	//step2: update category
 	snprintf(sql, sizeof(sql), "update userplace set categoryid=%d \
 	where placeid=%d and username = (select username from user where user.token = '%s')"
 		, atoi(categoryID), atoi(placeid), token);
@@ -432,17 +479,22 @@ void handleUpdatePlace(SOCKET s, char * buff) {
 	stmt = con->createStatement();
 	try {
 		bool res = stmt->execute(sql);
-		Send(s, "500", 3, 0);
+		Send(s, UPDATEPL_OK, strlen(UPDATEPL_OK), 0);
 	}
 	catch (sql::SQLException &e) {
 		std::cout << "# ERR: " << e.what() << std::endl;
-		Send(s, "502", 3, 0);
+		Send(s, UPDATEPL_NOK, strlen(UPDATEPL_NOK), 0);
 	}
 	delete stmt;
 
 	
 }
-
+/*
+* @function handleDeletePlace : process message type "DELETEPL"( delete place)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleDeletePlace(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -462,17 +514,22 @@ void handleDeletePlace(SOCKET s, char * buff) {
 	stmt = con->createStatement();
 	try {
 		bool res = stmt->execute(sql);
-		Send(s, "600", 3, 0);
+		Send(s, DELETEPL_OK, strlen(DELETEPL_OK), 0);
 	}
 	catch (sql::SQLException &e) {
 		std::cout << "# ERR: " << e.what() << std::endl;
-		Send(s, "601", 3, 0);
+		Send(s, DELETEPL_NOK, strlen(DELETEPL_NOK), 0);
 	}
 
 
 	delete stmt;
 }
-
+/*
+* @function handleSharePlace : process message type "SHAREPL"( share place)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleSharePlace(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -493,18 +550,23 @@ void handleSharePlace(SOCKET s, char * buff) {
 	stmt = con->createStatement();
 	try {
 		bool res = stmt->execute(sql);
-		Send(s, "300", 3, 0);
+		Send(s, SHAREPL_OK, strlen(SHAREPL_OK), 0);
 	}
 	catch (sql::SQLException &e) {
 		std::cout << "# ERR: " << e.what() << std::endl;
-		Send(s, "301", 3, 0);
+		Send(s, SHAREPL_NOK, strlen(SHAREPL_NOK), 0);
 	}
 
 
 	delete stmt;
 }
 
-
+/*
+* @function handleAddPlace : process message type "ADDPL"( add place)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleAddPlace(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -529,17 +591,22 @@ void handleAddPlace(SOCKET s, char * buff) {
 			, token, atoi(category_id));
 		printf("Query: %s\n", sql);
 		res = stmt->execute(sql);
-		Send(s, "400", 3, 0);
+		Send(s, ADDPL_OK, strlen(ADDPL_OK), 0);
 	}
 	catch (sql::SQLException &e) {
 		std::cout << "# ERR: " << e.what() << std::endl;
-		Send(s, "401", 3, 0);
+		Send(s, ADDPL_NOK, strlen(ADDPL_NOK), 0);
 	}
 
 
 	delete stmt;
 }
-
+/*
+* @function handleAddCategory : process message type "ADDCA" (add category)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleAddCategory(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -559,17 +626,22 @@ void handleAddCategory(SOCKET s, char * buff) {
 	stmt = con->createStatement();
 	try {
 		bool res = stmt->execute(sql);
-		Send(s, "900", 3, 0);
+		Send(s, CREATECA_OK, strlen(CREATECA_OK), 0);
 	}
 	catch (sql::SQLException &e) {
 		std::cout << "# ERR: " << e.what() << std::endl;
-		Send(s, "901", 3, 0);
+		Send(s, CREATECA_NOK, strlen(CREATECA_NOK), 0);
 	}
 
 
 	delete stmt;
 }
-
+/*
+* @function handleGetStatusAccount : process message type "STATUS" (status share locations)
+* @param s : client socket
+* @param buff: pointer request message
+*
+*/
 void handleGetStatusAccount(SOCKET s, char * buff) {
 	char * requestStr = (char *)malloc(sizeof(char) * BUFF_SIZE);
 	strcpy(requestStr, buff);
@@ -587,26 +659,39 @@ void handleGetStatusAccount(SOCKET s, char * buff) {
 	sql::ResultSet *res;
 	sql::Connection * con = getDbConnection();
 	stmt = con->createStatement();
-	res = stmt->executeQuery(sql);
+	try {
+		res = stmt->executeQuery(sql);
+	}
+	catch (sql::SQLException &e) {
+		std::cout << "# ERR: " << e.what() << std::endl;
+		Send(s, STATUS_NOK,strlen(STATUS_NOK), 0);
+		return;
+	}
 	char response[BUFF_SIZE];
 	bool isSuccess = false;
 	while (res->next()) {
 		isSuccess = true;
 		// send response with success code
-		snprintf(response, sizeof(response), "1000%s%s"
-			, SPLIT_DELIMITER, res->getString("count").c_str());
+		snprintf(response, sizeof(response), "%s%s%s"
+			,STATUS_OK, SPLIT_DELIMITER, res->getString("count").c_str());
 	}
 	if (isSuccess) {
 		Send(s, response, strlen(response), 0);
 
 	}
 	else {
-		Send(s, "1001", 3, 0);
+		Send(s, STATUS_NOK, strlen(STATUS_NOK), 0);
 	}
 	delete res;
 	delete stmt;
 }
-
+/*
+* @function handleMessage : main process classify request type
+* @param s : client socket
+* @param recvBuff: pointer request message
+* @param recv_size: length of recvBuff
+*
+*/
 void handleMessage(SOCKET s, char * recvBuff, int recv_size){
 	char * tmpSplitFunc = (char*)malloc(recv_size * sizeof(char));
 	strcpy(tmpSplitFunc, recvBuff);
