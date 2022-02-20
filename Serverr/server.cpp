@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 	//Step 3: Bind address to socket
 	sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(PORT);
+	serverAddr.sin_port = htons(atoi(argv[1]));
 	serverAddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
 
 	socks[0] = listenSock;
