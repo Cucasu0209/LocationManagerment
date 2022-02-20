@@ -103,7 +103,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Program Files\MySQL\Connector C++ 1.1\include;C:\Program Files\MySQL\MySQL Server 8.0\include;C:\Users\Administrator\Desktop\boost_1_78_0\boost_1_78_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\MySQL\Connector C++ 1.1\include;C:\Program Files\MySQL\MySQL Server 8.0\include;C:\boost_1_78_0\boost_1_78_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
