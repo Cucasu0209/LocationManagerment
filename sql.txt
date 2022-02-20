@@ -1,0 +1,23 @@
+CREATE TABLE User (
+    username varchar(100) primary key,
+    password varchar(100),
+    token varchar(200)
+);
+CREATE TABLE Category (
+    categoryid int primary key AUTO_INCREMENT,
+    name varchar(200),
+    user_create varchar(100)
+);
+
+CREATE TABLE Place (
+    placeid  int primary key AUTO_INCREMENT,
+    name varchar(200)
+);
+
+CREATE TABLE UserPlace (
+    username varchar(100),
+    placeid int,
+    categoryid int,
+    user_share varchar(100),
+    UNIQUE KEY `my_uniq_id` (`username`,`placeid`)
+);

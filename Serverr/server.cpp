@@ -394,7 +394,7 @@ void handleListPlace(SOCKET s, char * buff) {
 	while (res->next()) {
 		isSuccess = true;
 		char buildCategoryStr[BUFF_SIZE * 2];
-		// send response with success code
+		// add space to end of format
 		snprintf(buildCategoryStr, sizeof(buildCategoryStr), "%s%s%s%s%s%s%s%s "
 			, SPLIT_DELIMITER, res->getString(1).c_str(), SPLIT_DELIMITER, res->getString(2).c_str(),
 			SPLIT_DELIMITER, res->getString(3).c_str(), SPLIT_DELIMITER, res->getString(4).c_str());
