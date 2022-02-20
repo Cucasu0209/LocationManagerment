@@ -1,6 +1,0 @@
-﻿  Client.cpp
-c:\users\administrator\desktop\locationmanagerment\client\client.cpp(147): warning C4172: returning address of local variable or temporary: retu
-c:\users\administrator\desktop\locationmanagerment\client\client.cpp(149): warning C4172: returning address of local variable or temporary: retu
-c:\users\administrator\desktop\locationmanagerment\client\client.cpp(156): warning C4172: returning address of local variable or temporary: retu
-  Client.vcxproj -> C:\Users\Administrator\Desktop\LocationManagerment\Debug\Client.exe
-  Client.vcxproj -> C:\Users\Administrator\Desktop\LocationManagerment\Debug\Client.pdb (Full PDB)
