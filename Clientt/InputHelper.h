@@ -54,3 +54,22 @@ bool yesNoQuestion() {
 	return true;
 
 }
+
+
+/*
+* @function isExistInArray : check number exsit in array number
+* @param arr : array number
+* @param size_arr : length array
+* @param num : number check
+
+* @return :   true if exsit, else return false
+*
+*/
+bool isExistInArray(int arr[], int size_arr, int num) {
+	for (int i = 0; i < size_arr; i++) {
+		if (arr[i] == num) {
+			return true;
+		}
+	}
+	return false;
+}

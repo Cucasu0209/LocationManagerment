@@ -228,6 +228,8 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 	char response[BUFF_SIZE];
 	ret = receiveMessage(response);
 	char * typeReq = strtok(response, SPLIT_DELIMITER);
+	int list_location_id[1024];
+	int list_idx = 0;
 	if (strcmp(typeReq, LISTPL_OK) == 0) {
 		if (isShareType) {
 			printf("\t\t===================================================================\n");
@@ -235,6 +237,8 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 			printf("\t\t===================================================================\n");
 			char * place_id = strtok(NULL, SPLIT_DELIMITER);
 			while (place_id != NULL) {
+				list_location_id[list_idx] = atoi(place_id);
+				list_idx++;
 				char * place_name = strtok(NULL, SPLIT_DELIMITER);
 				char * user_share = strtok(NULL, SPLIT_DELIMITER);
 				printf("\t\t%-7s\t\t%-20s\t\t%-40s\n", place_id, user_share, place_name);
@@ -244,11 +248,13 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 			}
 		}
 		else {
-			printf("\t\t=======================================================================\n");
+			printf("\t\t====================================================================================\n");
 			printf("\t\tPlaceId\t\tUSERSHARE\t\tCATEGORY_NAME\t\t\tPLACE_NAME\n");
-			printf("\t\t=======================================================================\n");
+			printf("\t\t====================================================================================\n");
 			char * place_id = strtok(NULL, SPLIT_DELIMITER);
 			while (place_id != NULL) {
+				list_location_id[list_idx] = atoi(place_id);
+				list_idx++;
 				char * place_name = strtok(NULL, SPLIT_DELIMITER);
 				char * category_name = strtok(NULL, SPLIT_DELIMITER);
 				char * user_share = strtok(NULL, SPLIT_DELIMITER);
@@ -269,8 +275,15 @@ void showAllLocationByType(int categoryid, bool isShareType = false) {
 				return;
 			}
 			else {
-				showLocationDetail(in, isShareType);
-				return;
+				if (isExistInArray(list_location_id, list_idx, in)) {
+					showLocationDetail(in, isShareType);
+					return;
+				}
+				else {
+					printf("\tWrong. Select Again: ");
+					continue;
+				}
+				
 			}
 		}
 
@@ -306,8 +319,12 @@ int showCategorySelector() {
 		printf("\t\t=============================================================\n");
 		printf("\t\tCATEGORY_ID\t\tNAME\n");
 		printf("\t\t=============================================================\n");
+		int list_category_id[1024];
+		int list_idx = 0;
 		char * category_id = strtok(NULL, SPLIT_DELIMITER);
 		while (category_id != NULL) {
+			list_category_id[list_idx] = atoi(category_id);
+			list_idx++;
 			char * category_name = strtok(NULL, SPLIT_DELIMITER);
 			printf("\t\t%.15s\t\t%.40s\n", category_id, category_name);
 			category_id = strtok(NULL, SPLIT_DELIMITER);
@@ -324,7 +341,14 @@ int showCategorySelector() {
 				return -1;
 			}
 			else {
-				return in;
+				if (isExistInArray(list_category_id, list_idx, in)) {
+					return in;
+				}
+				else {
+					printf("\tWrong. Select Again: ");
+					continue;
+				}
+				
 			}
 		}
 
