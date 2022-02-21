@@ -469,6 +469,10 @@ void handleUpdatePlace(SOCKET s, char * buff) {
 	}
 	
 	//step2: update category
+	if (atoi(categoryID) == 0) {
+		Send(s, UPDATEPL_OK, strlen(UPDATEPL_OK), 0);
+		return;
+	}
 	snprintf(sql, sizeof(sql), "update userplace set categoryid=%d \
 	where placeid=%d and username = (select username from user where user.token = '%s')"
 		, atoi(categoryID), atoi(placeid), token);
